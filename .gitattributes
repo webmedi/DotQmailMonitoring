@@ -1,0 +1,4 @@
+* text=auto
+*.        text eol=lf
+*.php        text eol=lf
+*.csv        text eol=lf
