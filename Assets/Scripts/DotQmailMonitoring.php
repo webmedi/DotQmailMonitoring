@@ -3,7 +3,7 @@
 class DotQmailMonitoring {
 
 	const UPDATE_LOG_FILE = "dotQmailUpdate.log";
-	const DOT_QMAIL_EXCUTE_PHP_CODE = "";
+	const DOT_QMAIL_EXCUTE_PHP_CODE = "Insert Excute Code";
 
 	/** .qmailファイルを指定する。 */
 	private $targetDotQmailFile = null;
@@ -20,7 +20,7 @@ class DotQmailMonitoring {
 	 * ファイルの最終行に書き込む。
 	 */
 	private function LastLineWrite( $path = null, $dotQmailFilePath = null, $str = null ) {
-		if( $this->IsUpdateFileDiffCheck( $path,  $dotQmailFilePath ) != $this->LogSearch( self::DOT_QMAIL_EXCUTE_PHP_CODE, file_get_contents( $dotQmailFilePath ), true ) ) {
+		if( $this->IsUpdateFileDiffCheck( $path,  $dotQmailFilePath ) && !$this->LogSearch( self::DOT_QMAIL_EXCUTE_PHP_CODE, file_get_contents( $dotQmailFilePath ), true ) ) {
 			$fp = fopen( $dotQmailFilePath, 'a' );
 			fwrite( $fp, PHP_EOL . $str . PHP_EOL );
 			if( fclose( $fp ) ) {
@@ -54,12 +54,20 @@ class DotQmailMonitoring {
 	 * 更新日時差分比較用ファイルを作成する関数。
 	 */
 	private function UpdateFileFileCreate( $path = null, $dotQmailFilePath = null ) {
+		$myDtTime = new DateTime( "2000-01-01" );
 		if( !$this->IsCheckFile( $path ) ) {
 			if( touch( $path ) ) {
 				print PHP_EOL . $path . " を作成しました。" . PHP_EOL;
-				// 数字だけの文字列の場合変換されない
-				file_put_contents( $path, mb_convert_encoding( $this->UpdateFileTime( $dotQmailFilePath ), "UTF-8", "auto" ) );
-				if( !$this->LogSearch( self::DOT_QMAIL_EXCUTE_PHP_CODE, file_get_contents( $dotQmailFilePath ), true ) )file_put_contents( $path, self::DOT_QMAIL_EXCUTE_PHP_CODE );
+				if( !$this->LogSearch( self::DOT_QMAIL_EXCUTE_PHP_CODE, file_get_contents( $dotQmailFilePath ), true ) ) {
+					// 数字だけの文字列の場合変換されない
+					file_put_contents( $path, mb_convert_encoding( $myDtTime->getTimestamp( ), "UTF-8", "auto" ) );
+
+				} else {
+					print PHP_EOL . self::DOT_QMAIL_EXCUTE_PHP_CODE . " は既に, " . $dotQmailFilePath . " に含まれていたため古い時間で, " . $path . " に書き込みました。" . PHP_EOL;
+					// 数字だけの文字列の場合変換されない
+					file_put_contents( $path, mb_convert_encoding( $this->UpdateFileTime( $dotQmailFilePath ), "UTF-8", "auto" ) );
+
+				}
 
 			} else print PHP_EOL . $path . " を作成出来ませんでした。" . PHP_EOL;
 
@@ -71,26 +79,42 @@ class DotQmailMonitoring {
 	 * 更新日時差分比較用ファイルと.qmailファイルを比較して日付に差分があるかチェックする関数
 	 */
 	private function IsUpdateFileDiffCheck( $path = null, $dotQmailFilePath = null ) {
-		$updateFileTime = intval( file_get_contents( $path ) );
-		$dotQmailFileTime = intval( $this->UpdateFileTime( $dotQmailFilePath ) );
+		$myDtUpdateFileTime = new \DateTime( );
+		$myDtDotQmailFileTime = new \DateTime( );
+		$myDtGosa = new \DateTime( );
+		$myDtNow = new \DateTime( );
+		$flg = true;
 
-		print PHP_EOL . "更新時刻( dotQmailUpdate ) : " . date( "Y-m-d H:i:s", $updateFileTime ) . PHP_EOL;
-		print PHP_EOL . "更新時刻( qmail ) : " . date( "Y-m-d H:i:s", $dotQmailFileTime ) . PHP_EOL;
-		print PHP_EOL . date( "Y-m-d H:i:s", time( ) ) . PHP_EOL;
-		print PHP_EOL . date( "Y-m-d H:i:s", strtotime( '+30 second' ) ) . PHP_EOL;
-		print PHP_EOL . time( ). PHP_EOL;
-		print PHP_EOL . date( "Y-m-d H:i:10" ) . PHP_EOL;
+		$myDtUpdateFileTime->setTimestamp( intval( file_get_contents( $path ) ) );
+		$myDtDotQmailFileTime->setTimestamp( $this->UpdateFileTime( $dotQmailFilePath ) );
+		$myDtGosa->setTimestamp( strtotime( '+30 second' ) );
 
-		if( $updateFileTime !== $dotQmailFileTime && $dotQmailFileTime <= strtotime( '+30 second' )  ) {
+		$myInterval = $myDtUpdateFileTime->diff( $myDtDotQmailFileTime );
+
+		var_dump( $myInterval->format( "%Y-%m-%d %H:%i:%s" ) );
+		var_dump( $myDtDotQmailFileTime == $myDtUpdateFileTime );
+
+		print PHP_EOL . "更新時刻( dotQmailUpdate ) : " . $myDtUpdateFileTime->format( "Y-m-d H:i:s" ) . PHP_EOL;
+		print PHP_EOL . "更新時刻( qmail ) : " . $myDtDotQmailFileTime->format( "Y-m-d H:i:s" ) . PHP_EOL;
+		print PHP_EOL . $myDtNow->format( "Y-m-d H:i:s" ) . PHP_EOL;
+		print PHP_EOL . $myDtGosa->format( "Y-m-d H:i:s" ) . PHP_EOL;
+
+		if( $myDtDotQmailFileTime != $myDtUpdateFileTime && $myDtDotQmailFileTime->getTimestamp( ) <= $myDtGosa->getTimestamp( ) ) {
 			print PHP_EOL . ".qmail ファイルの更新時刻に差異がありました。" . PHP_EOL;
 			return true;
 
 		} else {
 			print PHP_EOL . ".qmail ファイルの更新時刻に差異はありませんでした。" . PHP_EOL;
+			$flg = false;
 			return false;
 
 		}
 
+		if( !$this->LogSearch( self::DOT_QMAIL_EXCUTE_PHP_CODE, file_get_contents( $dotQmailFilePath ) ) && !$flg ) {
+			print PHP_EOL . ".qmail ファイルの更新時刻に差異はありませんでしたが, " . self::DOT_QMAIL_EXCUTE_PHP_CODE . " の記述がありませんでしたので更新しました。" . PHP_EOL;
+			return true;
+
+		}
 
 	}
 
@@ -99,16 +123,17 @@ class DotQmailMonitoring {
 	 * ファイルの更新日時を取得する。
 	 */
 	private function UpdateFileTime( $path = null, $debug = false ) {
-		$time = intval( 1234 );
+		$myDt = new \DateTime( );
 		if( $this->IsCheckFile( $path ) ) {
-			(int)$time = intval( filemtime( $path ) );
+			$myDt->setTimestamp( filemtime( $path ) );
 			if( $debug ) {
-				$time = $path . " " . date( "Y-m-d H:i:s", $time );
+				$time = $path . " " . date_format( $myDt, "Y-m-d H:i:s" );
+				print PHP_EOL . $time . PHP_EOL;
 
 			}
 
 		}
-		return intval( $time );
+		return $myDt->getTimestamp( );
 
 	}
 
