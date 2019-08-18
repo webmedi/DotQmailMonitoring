@@ -54,7 +54,7 @@ class DotQmailMonitoring {
 	 * 更新日時差分比較用ファイルを作成する関数。
 	 */
 	private function UpdateFileFileCreate( $path = null, $dotQmailFilePath = null ) {
-		$myDtTime = new DateTime( "2000-01-01" );
+		$myDtTime = new \DateTime( "2000-01-01" );
 		if( !$this->IsCheckFile( $path ) ) {
 			if( touch( $path ) ) {
 				print PHP_EOL . $path . " を作成しました。" . PHP_EOL;
